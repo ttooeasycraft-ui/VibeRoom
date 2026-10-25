@@ -1,25 +1,16 @@
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f0f17">
-  <title>VibeRoom — Estúdio</title>
+  <title>VibeRoom — Estúdio do dono</title>
   <script type="module" src="./studio.js"></script>
 </head>
 <body class="studio-page">
-
 <div class="studio">
   <header class="top">
-    <div class="brand">
-      <span class="logo">V</span>
-      <div>
-        VibeRoom • Estúdio
-        <small>PAINEL DE TRANSMISSÃO</small>
-      </div>
-    </div>
-
+    <div class="brand"><span class="logo">V</span><div>VibeRoom • Estúdio<small>SÓ O DONO DA SALA USA ESTA PÁGINA</small></div></div>
     <div class="pills">
       <span class="pill" id="connPill">Conectando…</span>
       <span class="pill live hidden" id="livePill">● AO VIVO</span>
@@ -27,89 +18,47 @@
     </div>
   </header>
 
-  <main>
-    <div class="preview" id="previewBox">
-      <video
-        id="preview"
-        muted
-        playsinline
-        autoplay
-        class="hidden"
-      ></video>
-
-      <div class="empty" id="previewEmpty">
-        <div class="play">🎬</div>
-        <h3>Pronto para transmitir</h3>
-        <p>
-          Inicie o compartilhamento para mostrar sua tela
-          aos participantes da sala VibeRoom.
-        </p>
-      </div>
+  <div class="preview" id="previewBox">
+    <video id="preview" muted playsinline autoplay class="hidden"></video>
+    <div class="empty" id="previewEmpty">
+      <div class="play">🎬</div>
+      <h3>Pronto para transmitir</h3>
+      <p>Clique em “Compartilhar tela” e escolha a janela ou a tela inteira. Deixe esta aba aberta enquanto transmite — a galera assiste pela Activity no Discord.</p>
     </div>
+  </div>
 
-    <div class="controls">
-      <button class="btn primary" id="shareBtn">
-        🖥️ Compartilhar tela
-      </button>
+  <div class="controls">
+    <span class="controls" id="sources">
+      <button class="btn primary" id="shareBtn">🖥️ Compartilhar tela</button>
+      <button class="btn" id="camBtn">📷 Câmera</button>
+      <button class="btn" id="fileBtn">🎞️ Vídeo do aparelho</button>
+      <input type="file" id="fileInput" accept="video/*" class="hidden">
+    </span>
+    <button class="btn danger hidden" id="stopBtn">⏹ Parar transmissão</button>
+    <button class="btn" id="micBtn">🎙️ Microfone: desligado</button>
+    <select id="quality" title="Qualidade do vídeo">
+      <option value="max">Qualidade: máxima (1280px)</option>
+      <option value="alta">Qualidade: alta (960px)</option>
+      <option value="media" selected>Qualidade: média (720px)</option>
+      <option value="eco">Qualidade: economia (480px)</option>
+    </select>
+  </div>
 
-      <button class="btn danger hidden" id="stopBtn">
-        ⏹ Parar transmissão
-      </button>
+  <div class="stats">
+    <div class="stat"><small>Quadros/s</small><b id="statFps">0</b></div>
+    <div class="stat"><small>Envio</small><b id="statRate">0 KB/s</b></div>
+    <div class="stat"><small>Assistindo</small><b id="statViewers">0</b></div>
+    <div class="stat"><small>Áudio</small><b id="statAudio">—</b></div>
+  </div>
 
-      <button class="btn" id="micBtn">
-        🎙️ Microfone: desligado
-      </button>
+  <div class="notice hidden" id="mobileNote">📱 Celular e tablet <b>não conseguem compartilhar a tela</b> pelo navegador (isso vale para qualquer marca, não é defeito do seu aparelho). Use <b>📷 Câmera</b> ou <b>🎞️ Vídeo do aparelho</b>, ou abra o estúdio em um computador.</div>
 
-      <select id="quality" title="Qualidade do vídeo">
-        <option value="max">Máxima (1280px)</option>
-        <option value="alta">Alta (960px)</option>
-        <option value="media" selected>Média (720px)</option>
-        <option value="eco">Economia (480px)</option>
-      </select>
-    </div>
-
-    <section class="stats">
-      <div class="stat">
-        <small>Quadros/s</small>
-        <b id="statFps">0</b>
-      </div>
-
-      <div class="stat">
-        <small>Envio</small>
-        <b id="statRate">0 KB/s</b>
-      </div>
-
-      <div class="stat">
-        <small>Assistindo</small>
-        <b id="statViewers">0</b>
-      </div>
-
-      <div class="stat">
-        <small>Áudio</small>
-        <b id="statAudio">—</b>
-      </div>
-    </section>
-
-    <section class="notice" id="hint">
-      <b>Sobre celulares Android</b>
-      <p>
-        A captura de tela depende do suporte do navegador.
-        Se o botão não iniciar a captura, será necessária
-        uma integração Android compatível com a VibeRoom.
-        Alterar a qualidade do vídeo não resolve essa limitação.
-      </p>
-    </section>
-  </main>
-</div>
-
-<div class="gate hidden" id="gate">
-  <div class="box">
-    <h2 id="gateTitle"></h2>
-    <p id="gateText"></p>
+  <div class="notice" id="hint">
+    ✦ Dica: use <b>Chrome</b> ou <b>Edge</b> no computador. Se quiser que o som do jogo/vídeo vá junto, marque “Compartilhar áudio” (guia ou sistema) na janela de escolha da tela. Só o dono fala: quem assiste não tem microfone.
   </div>
 </div>
 
+<div class="gate hidden" id="gate"><div class="box"><h2 id="gateTitle"></h2><p id="gateText"></p></div></div>
 <div class="toast" id="toast"></div>
-
 </body>
 </html>
