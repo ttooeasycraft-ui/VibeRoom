@@ -4,7 +4,6 @@ import { PCM_RATE, createSocket, toast } from './common.js';
 const $ = (id) => document.getElementById(id);
 const sess = new URLSearchParams(location.search).get('sess');
 
-// Qualidades: largura máxima, qualidade do JPEG e quadros por segundo.
 const PRESETS = {
   max: { width: 1280, quality: 0.62, fps: 10 },
   alta: { width: 960, quality: 0.6, fps: 8 },
@@ -29,7 +28,7 @@ if (!sess) {
 const socket = createSocket({
   path: '/ws',
   params: { sess },
-  auth: { sess }
+  auth: { sess },
 });
 
 let viewers = 0;
@@ -55,7 +54,7 @@ socket.on('connect_error', (error) => {
     denied = true;
     gate(
       'Link expirado',
-      'Volte para a Activity no Discord e clique em “Abrir estúdio” de novo.'
+      'Volte para a Activity no Discord e clique em “Abrir estúdio” novamente.'
     );
   }
 });
@@ -78,18 +77,17 @@ socket.on('room:state', (state) => {
   $('livePill').classList.toggle('hidden', !live);
 });
 
-// ── Estatísticas ─────────────────────────────────────────────────────────────
 const stats = { frames: 0, bytes: 0 };
 
 setInterval(() => {
   $('statFps').textContent = String(stats.frames);
-  $('statRate').textContent = `${Math.round(stats.bytes / 1024)} KB/s`;
+  $('statRate').textContent =
+    `${Math.round(stats.bytes / 1024)} KB/s`;
 
   stats.frames = 0;
   stats.bytes = 0;
 }, 1000);
 
-// ── Áudio: mistura microfone + som da tela e manda em PCM 16-bit mono ────────
 let audioCtx = null;
 let bus = null;
 let micStream = null;
@@ -106,7 +104,6 @@ function ensureAudio() {
 
   const processor = audioCtx.createScriptProcessor(2048, 1, 1);
   const silent = audioCtx.createGain();
-
   silent.gain.value = 0;
 
   bus.connect(processor);
@@ -117,15 +114,21 @@ function ensureAudio() {
     if (!socket.connected || denied) return;
 
     const input = event.inputBuffer.getChannelData(0);
-    const samples = resample(input, audioCtx.sampleRate, PCM_RATE);
-    let peak = 0;
+    const samples = resample(
+      input,
+      audioCtx.sampleRate,
+      PCM_RATE
+    );
 
+    let peak = 0;
     const pcm = new Int16Array(samples.length);
 
     for (let i = 0; i < samples.length; i++) {
       const v = Math.max(-1, Math.min(1, samples[i]));
 
-      pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+      pcm[i] = v < 0
+        ? v * 0x8000
+        : v * 0x7fff;
 
       if (Math.abs(v) > peak) peak = Math.abs(v);
     }
@@ -133,7 +136,6 @@ function ensureAudio() {
     if (peak < 0.0008) return;
 
     socket.sendAudio(pcm.buffer);
-
     $('statAudio').textContent = 'transmitindo';
 
     clearTimeout(ensureAudio.timer);
@@ -157,7 +159,9 @@ function resample(input, from, to) {
     const i1 = Math.min(i0 + 1, input.length - 1);
     const frac = pos - i0;
 
-    out[i] = input[i0] * (1 - frac) + input[i1] * frac;
+    out[i] =
+      input[i0] * (1 - frac) +
+      input[i1] * frac;
   }
 
   return out;
@@ -177,19 +181,23 @@ $('micBtn').onclick = async () => {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+        },
       });
-    } catch (error) {
-      console.error('Erro ao acessar o microfone:', error);
-      toast('Não consegui acessar o microfone. Libere a permissão no navegador.');
+    } catch {
+      toast(
+        'Não consegui acessar o microfone. Libere a permissão no navegador.'
+      );
       return;
     }
 
     ensureAudio();
     await audioCtx.resume();
 
-    audioCtx.createMediaStreamSource(micStream).connect(bus);
+    audioCtx
+      .createMediaStreamSource(micStream)
+      .connect(bus);
+
     micOn = true;
   } else {
     micOn = !micOn;
@@ -202,7 +210,6 @@ $('micBtn').onclick = async () => {
   updateMicUI();
 };
 
-// ── Vídeo: captura a tela, converte cada quadro em JPEG e envia ───────────────
 let screenStream = null;
 let running = false;
 let busy = false;
@@ -210,84 +217,50 @@ let canvas = null;
 let canvasCtx = null;
 
 async function startShare() {
-  if (denied) {
-    toast('O estúdio não está autorizado. Abra-o novamente pelo Discord.');
-    return;
-  }
-
-  // Verifica se o navegador oferece a API de captura de tela.
-  const getDisplayMedia = navigator.mediaDevices?.getDisplayMedia;
-
-  if (!getDisplayMedia) {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
     toast(
-      'Este navegador não oferece captura de tela. ' +
-      'O compartilhamento móvel ainda precisa de uma solução compatível.'
+      'Este navegador não oferece captura de tela. É necessária uma integração compatível com Android.'
     );
     return;
   }
 
   try {
-    screenStream = await getDisplayMedia.call(
-      navigator.mediaDevices,
-      {
-        video: {
-          frameRate: { ideal: 15 },
-          width: { max: 1920 },
-          height: { max: 1080 }
-        },
-        audio: true
-      }
-    );
-  } catch (error) {
-    console.error('Erro ao compartilhar a tela:', error);
-
-    if (error.name === 'NotAllowedError') {
-      toast('Compartilhamento bloqueado ou permissão negada.');
-    } else if (error.name === 'AbortError') {
-      toast('O compartilhamento foi cancelado.');
-    } else if (error.name === 'NotFoundError') {
-      toast('Nenhuma fonte de tela disponível para compartilhar.');
-    } else {
-      toast('Não foi possível compartilhar a tela neste navegador.');
-    }
-
-    screenStream = null;
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        frameRate: { ideal: 15 },
+        width: { max: 1920 },
+        height: { max: 1080 },
+      },
+      audio: true,
+    });
+  } catch {
+    toast('Compartilhamento cancelado ou bloqueado pelo navegador.');
     return;
   }
 
   const videoTrack = screenStream.getVideoTracks()[0];
 
-  if (!videoTrack) {
-    screenStream.getTracks().forEach((track) => track.stop());
-    screenStream = null;
-
-    toast('O navegador não forneceu uma imagem da tela.');
-    return;
-  }
-
-  videoTrack.addEventListener('ended', () => stopShare(true));
+  videoTrack.addEventListener('ended', () => {
+    stopShare(true);
+  });
 
   const preview = $('preview');
   preview.srcObject = screenStream;
   preview.classList.remove('hidden');
+
   $('previewEmpty').classList.add('hidden');
   $('shareBtn').classList.add('hidden');
   $('stopBtn').classList.remove('hidden');
 
   if (screenStream.getAudioTracks().length) {
-    try {
-      ensureAudio();
-      await audioCtx.resume();
+    ensureAudio();
+    await audioCtx.resume();
 
-      screenAudioNode = audioCtx.createMediaStreamSource(
-        new MediaStream(screenStream.getAudioTracks())
-      );
+    screenAudioNode = audioCtx.createMediaStreamSource(
+      new MediaStream(screenStream.getAudioTracks())
+    );
 
-      screenAudioNode.connect(bus);
-    } catch (error) {
-      console.error('Erro ao transmitir o áudio da tela:', error);
-      toast('A tela foi capturada, mas não foi possível ativar o áudio.');
-    }
+    screenAudioNode.connect(bus);
   }
 
   running = true;
@@ -310,11 +283,8 @@ function stopShare(notify = true) {
   screenStream = null;
 
   const preview = $('preview');
-
-  if (preview) {
-    preview.srcObject = null;
-    preview.classList.add('hidden');
-  }
+  preview.srcObject = null;
+  preview.classList.add('hidden');
 
   $('previewEmpty').classList.remove('hidden');
   $('shareBtn').classList.remove('hidden');
@@ -325,9 +295,8 @@ function stopShare(notify = true) {
   }
 }
 
-/** Envia um quadro; o ack do servidor libera o próximo. */
 async function sendBlob(blob) {
-  if (!socket.connected || denied) {
+  if (!socket.connected) {
     busy = false;
     return;
   }
@@ -351,7 +320,11 @@ function drawToCanvas(source, srcW, srcH, preset) {
   const width = Math.min(preset.width, srcW);
   const height = Math.round((width * srcH) / srcW);
 
-  if (!canvas || canvas.width !== width || canvas.height !== height) {
+  if (
+    !canvas ||
+    canvas.width !== width ||
+    canvas.height !== height
+  ) {
     canvas = new OffscreenCanvas(width, height);
     canvasCtx = canvas.getContext('2d');
   }
@@ -360,74 +333,60 @@ function drawToCanvas(source, srcW, srcH, preset) {
 
   return canvas.convertToBlob({
     type: 'image/jpeg',
-    quality: preset.quality
+    quality: preset.quality,
   });
 }
 
-// Chrome/Edge compatíveis: lê os quadros diretamente da captura.
 async function pumpWithProcessor(track) {
-  let reader;
+  const processor = new MediaStreamTrackProcessor({ track });
+  const reader = processor.readable.getReader();
+  let last = 0;
 
-  try {
-    const processor = new MediaStreamTrackProcessor({ track });
-    reader = processor.readable.getReader();
+  while (running) {
+    const { value: frame, done } = await reader.read();
 
-    let last = 0;
+    if (done) break;
 
-    while (running) {
-      const { value: frame, done } = await reader.read();
+    const preset = PRESETS[$('quality').value];
+    const now = performance.now();
 
-      if (done) break;
-
-      const preset = PRESETS[$('quality').value] || PRESETS.media;
-      const now = performance.now();
-
-      if (busy || now - last < 1000 / preset.fps) {
-        frame.close();
-        continue;
-      }
-
-      last = now;
-      busy = true;
-
-      try {
-        const blob = await drawToCanvas(
-          frame,
-          frame.displayWidth,
-          frame.displayHeight,
-          preset
-        );
-
-        frame.close();
-        await sendBlob(blob);
-      } catch (error) {
-        console.error('Erro ao processar quadro:', error);
-        frame.close();
-        busy = false;
-      }
+    if (busy || now - last < 1000 / preset.fps) {
+      frame.close();
+      continue;
     }
-  } catch (error) {
-    console.error('Erro na captura de quadros:', error);
-    toast('A captura começou, mas não foi possível processar o vídeo.');
-    stopShare(true);
-  } finally {
-    reader?.cancel().catch(() => {});
+
+    last = now;
+    busy = true;
+
+    try {
+      const blob = await drawToCanvas(
+        frame,
+        frame.displayWidth,
+        frame.displayHeight,
+        preset
+      );
+
+      frame.close();
+      await sendBlob(blob);
+    } catch {
+      frame.close();
+      busy = false;
+    }
   }
+
+  reader.cancel().catch(() => {});
 }
 
-// Plano B para navegadores sem MediaStreamTrackProcessor.
-// Mantenha a aba do estúdio visível durante a transmissão.
 function pumpWithTimer(video) {
   $('hint').textContent =
-    '⚠ Este navegador pode não transmitir em segundo plano. ' +
-    'Mantenha a aba do estúdio visível.';
+    '⚠ Mantenha esta aba visível durante a transmissão.';
 
   const tick = async () => {
     if (!running) return;
 
-    const preset = PRESETS[$('quality').value] || PRESETS.media;
+    const preset = PRESETS[$('quality').value];
 
-    if (!busy && video.videoWidth && video.videoHeight) {
+    if (!busy && video.videoWidth) {
       busy = true;
 
       try {
@@ -439,15 +398,12 @@ function pumpWithTimer(video) {
         );
 
         await sendBlob(blob);
-      } catch (error) {
-        console.error('Erro ao capturar quadro:', error);
+      } catch {
         busy = false;
       }
     }
 
-    if (running) {
-      setTimeout(tick, 1000 / preset.fps);
-    }
+    setTimeout(tick, 1000 / preset.fps);
   };
 
   tick();
@@ -459,4 +415,4 @@ $('stopBtn').onclick = () => stopShare(true);
 window.addEventListener('beforeunload', () => {
   if (socket.connected) socket.emit('studio:stop');
 });
-          
+              
