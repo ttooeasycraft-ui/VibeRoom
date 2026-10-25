@@ -196,6 +196,9 @@ async function drawLatest() {
       if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
+        // Vídeo em pé (shorts): no celular o palco fica mais alto para ele aparecer inteiro e maior.
+        const portrait = bitmap.height > bitmap.width;
+        $('stage').style.aspectRatio = portrait && window.matchMedia('(max-width: 860px)').matches ? '3 / 4' : '';
       }
       ctx.drawImage(bitmap, 0, 0);
       bitmap.close();
