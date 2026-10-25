@@ -156,7 +156,7 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let fileUrl = null;
 
 /** Começa a transmitir a partir de um "stream" (tela, câmera ou vídeo do aparelho). */
-async function beginCapture(stream, { isFile = false } = {}) {
+async function beginCapture(stream, { source = 'screen' } = {}) {
   screenStream = stream;
   const videoTrack = stream.getVideoTracks()[0];
   if (!videoTrack) {
@@ -166,7 +166,7 @@ async function beginCapture(stream, { isFile = false } = {}) {
   videoTrack.addEventListener('ended', () => stopShare(true));
 
   const preview = $('preview');
-  if (!isFile) preview.srcObject = stream; // no vídeo do aparelho o próprio <video> já mostra o arquivo
+  if (source !== 'file') preview.srcObject = stream; // no vídeo do aparelho o próprio <video> já mostra o arquivo
   preview.classList.remove('hidden');
   $('previewEmpty').classList.add('hidden');
   $('sources').classList.add('hidden');
@@ -180,8 +180,10 @@ async function beginCapture(stream, { isFile = false } = {}) {
   }
 
   running = true;
-  if ('MediaStreamTrackProcessor' in window) pumpWithProcessor(videoTrack);
-  else pumpWithTimer(preview);
+  // Tela (computador): lê os quadros direto da captura. Câmera e vídeo: lê do <video> na tela, que já vem na
+  // orientação certa (vídeo em pé/shorts, câmera girada) — por isso nada fica de lado ou esticado.
+  if (source === 'screen' && 'MediaStreamTrackProcessor' in window) pumpWithProcessor(videoTrack);
+  else pumpWithTimer(preview, source !== 'screen');
 }
 
 async function startScreen() {
@@ -190,7 +192,7 @@ async function startScreen() {
       video: { frameRate: { ideal: 15 }, width: { max: 1920 }, height: { max: 1080 } },
       audio: true,
     });
-    await beginCapture(stream);
+    await beginCapture(stream, { source: 'screen' });
   } catch {
     toast(
       isMobile
@@ -206,7 +208,7 @@ async function startCamera() {
       video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false, // o som é o do botão Microfone
     });
-    await beginCapture(stream);
+    await beginCapture(stream, { source: 'camera' });
   } catch {
     toast('Não consegui abrir a câmera. Libere a permissão da câmera no navegador.');
   }
@@ -229,7 +231,7 @@ function startFile(file) {
     () => {
       const capture = preview.captureStream || preview.mozCaptureStream;
       if (!capture) return toast('Este navegador não consegue transmitir vídeo do aparelho.');
-      beginCapture(capture.call(preview), { isFile: true });
+      beginCapture(capture.call(preview), { source: 'file' });
     },
     { once: true },
   );
@@ -278,8 +280,9 @@ async function sendBlob(blob) {
 }
 
 function drawToCanvas(source, srcW, srcH, preset) {
-  const width = Math.min(preset.width, srcW);
-  const height = Math.round((width * srcH) / srcW);
+  const scale = Math.min(1, preset.width / Math.max(srcW, srcH)); // limite no lado maior
+  const width = Math.max(2, Math.round(srcW * scale));
+  const height = Math.max(2, Math.round(srcH * scale));
   if (!canvas || canvas.width !== width || canvas.height !== height) {
     canvas = new OffscreenCanvas(width, height);
     canvasCtx = canvas.getContext('2d');
@@ -317,8 +320,8 @@ async function pumpWithProcessor(track) {
 }
 
 // Plano B (outros navegadores): usa um temporizador. Mantenha esta aba visível.
-function pumpWithTimer(video) {
-  $('hint').textContent = '⚠ Este navegador não permite transmitir em segundo plano. Mantenha esta aba visível (ou use Chrome/Edge).';
+function pumpWithTimer(video, quiet = false) {
+  if (!quiet) $('hint').textContent = '⚠ Este navegador não permite transmitir em segundo plano. Mantenha esta aba visível (ou use Chrome/Edge).';
   const tick = async () => {
     if (!running) return;
     const preset = PRESETS[$('quality').value];
