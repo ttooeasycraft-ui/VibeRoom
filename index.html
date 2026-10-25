@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f0f17">
+  <title>VibeRoom — Sala ao vivo</title>
+  <script type="module" src="./activity.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><span class="logo">V</span><div>VibeRoom<small>SUA SALA, SUA VIBE</small></div></div>
+    <div class="pills">
+      <span class="pill" id="connPill">Conectando…</span>
+      <span class="pill live hidden" id="livePill">● AO VIVO</span>
+      <span class="pill" id="viewersPill">👥 0</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage-col">
+      <div class="stage" id="stage">
+        <canvas id="screen" class="hidden"></canvas>
+        <div class="empty" id="empty">
+          <div class="play">▶</div>
+          <h3 id="emptyTitle">A tela do dono aparece aqui</h3>
+          <p id="emptyText">Quando o dono começar a transmitir, todo mundo assiste por aqui. Só o dono pode falar e compartilhar.</p>
+        </div>
+        <div class="stage-bar">
+          <button class="btn" id="soundBtn">🔊 Ativar som</button>
+          <input type="range" id="vol" min="0" max="1" step="0.05" value="1" title="Volume">
+          <span class="spacer"></span>
+          <button class="btn" id="fsBtn" title="Tela cheia">⛶</button>
+        </div>
+      </div>
+
+      <div class="host-card">
+        <div class="who">
+          <span id="hostAvatarSlot"></span>
+          <div><b id="hostName">Dono da sala</b><small id="hostRole">Anfitrião</small></div>
+        </div>
+        <div class="tools">
+          <button class="btn primary hidden" id="studioBtn">🎬 Abrir estúdio</button>
+          <button class="btn hidden" id="lockBtn">🔒 Silenciar chat</button>
+          <button class="btn hidden" id="clearBtn">🧹 Limpar chat</button>
+          <button class="btn hidden" id="claimBtn">👑 Assumir sala</button>
+        </div>
+      </div>
+      <div class="notice" id="notice">🔇 O microfone é só do dono da sala. Você assiste e conversa pelo chat.</div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Na sala <span id="countLabel">0</span></h2>
+        <div class="members" id="members"></div>
+      </div>
+      <div class="card chat">
+        <h2>Chat da sala</h2>
+        <div class="feed" id="feed"></div>
+        <div class="lock hidden" id="lockBanner">🔒 O dono silenciou o chat.</div>
+        <form class="send" id="form">
+          <input id="msg" maxlength="400" placeholder="Escreva uma mensagem…" autocomplete="off">
+          <button class="btn primary" aria-label="Enviar">➤</button>
+        </form>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="gate hidden" id="gate"><div class="box"><h2 id="gateTitle"></h2><p id="gateText"></p></div></div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
